@@ -1,20 +1,34 @@
-use std::io::prelude::*;
 use std::fs::{self, File};
+use std::io::prelude::*;
+use std::path::PathBuf;
 
 fn main() -> std::io::Result<()> {
     let data = b"some bytes";
     write(data)?;
-    let paths = all_files();
+    let mut names: Vec<PathBuf> = Vec::new();
+    all_files(&mut names, &PathBuf::from(".\\"));
 
-    for path in paths {
-        println!("Name: {}", path.unwrap().path().display())
+    for path in names {
+        println!("{}", path.display())
     }
     Ok(())
 }
 
-fn all_files() -> fs::ReadDir {
-    let temp = fs::read_dir("./").unwrap();
-    temp
+fn all_files(names: &mut Vec<PathBuf>, file: &PathBuf) {
+    let paths = fs::read_dir(file).unwrap();  
+    for path in paths {
+        let curr = path.unwrap().path();
+        if is_fldr(&curr, file) {
+            all_files(names, &curr);
+        } else {
+            names.push(curr);
+        }
+    }
+}
+
+fn is_fldr(curr: &PathBuf, root: &PathBuf) -> bool {
+    let root_str = &root.as_path().display().to_string()[..];
+    !(&curr.as_path().display().to_string()[..]).trim_start_matches(root_str).contains(".")
 }
 
 fn write(data: &[u8; 10]) -> Result<(), std::io::Error> {
