@@ -5,23 +5,23 @@ use std::path::PathBuf;
 fn main() -> std::io::Result<()> {
     let data = b"some bytes";
     write(data)?;
-    let mut names: Vec<PathBuf> = Vec::new();
-    all_files(&mut names, &PathBuf::from(".\\"));
+    let mut files: Vec<PathBuf> = Vec::new();
+    all_files(&mut files, &PathBuf::from(".\\"));
 
-    for path in names {
+    for path in files {
         println!("{}", path.display())
     }
     Ok(())
 }
 
-fn all_files(names: &mut Vec<PathBuf>, file: &PathBuf) {
+fn all_files(files: &mut Vec<PathBuf>, file: &PathBuf) {
     let paths = fs::read_dir(file).unwrap();  
     for path in paths {
         let curr = path.unwrap().path();
         if is_fldr(&curr, file) {
-            all_files(names, &curr);
+            all_files(files, &curr);
         } else {
-            names.push(curr);
+            files.push(curr);
         }
     }
 }
