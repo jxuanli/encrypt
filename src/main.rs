@@ -5,6 +5,10 @@ fn main() -> std::io::Result<()> {
     let data = b"some bytes";
     write(data)?;
     let paths = all_files();
+
+    for path in paths {
+        println!("Name: {}", path.unwrap().path().display())
+    }
     Ok(())
 }
 
