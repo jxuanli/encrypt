@@ -59,8 +59,5 @@ fn encrypt_all(paths: Vec<PathBuf>) -> Result<(), std::io::Error> {
 }
 
 fn to_sha3(content: &str) -> String {
-    let mut hasher = Sha3_256::new();
-    hasher.update(content.as_bytes());
-    let data = hasher.finalize();
-    hex::encode(data)
+    hex::encode(Sha3_256::new().chain_update(content.as_bytes()).finalize())
 }
