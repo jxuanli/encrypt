@@ -1,6 +1,7 @@
-use std::fs::{self, File};
+use std::fs::{self, File, metadata};
 use std::io::prelude::*;
 use std::path::PathBuf;
+// use sha3::{Digest, Sha3_256};
 
 fn main() -> std::io::Result<()> {
     let data = b"some bytes";
@@ -18,17 +19,13 @@ fn all_files(files: &mut Vec<PathBuf>, file: &PathBuf) {
     let paths = fs::read_dir(file).unwrap();  
     for path in paths {
         let curr = path.unwrap().path();
-        if is_fldr(&curr, file) {
+        let temp = metadata(&curr.as_path().display().to_string()[..]).unwrap();
+        if temp.is_dir() {
             all_files(files, &curr);
         } else {
             files.push(curr);
         }
     }
-}
-
-fn is_fldr(curr: &PathBuf, root: &PathBuf) -> bool {
-    let root_str = &root.as_path().display().to_string()[..];
-    !(&curr.as_path().display().to_string()[..]).trim_start_matches(root_str).contains(".")
 }
 
 fn write(data: &[u8; 10]) -> Result<(), std::io::Error> {
