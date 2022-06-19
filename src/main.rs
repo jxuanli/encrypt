@@ -4,7 +4,6 @@ use std::str;
 use hex;
 use aes_gcm_siv::{Aes256GcmSiv, Key, Nonce}; 
 use aes_gcm_siv::aead::{Aead, NewAead};
-use base64;
 
 
 fn main() -> std::io::Result<()> {
@@ -52,7 +51,8 @@ fn should_include(file: &str) -> bool {
         ".\\.gitignore",
         ".\\Cargo.lock",
         ".\\Cargo.toml",
-        ".\\log"
+        ".\\log",
+        ".\\.vscode"
     ];
     !to_exclude.contains(&file)
 }
@@ -71,15 +71,14 @@ fn encrypt(content: &str) -> String {
     let key = b"an example very very secret key.";
     let cipher = Aes256GcmSiv::new(Key::from_slice(key));
     let nonce = Nonce::from_slice(b"unique nonce");
-    let ciphertext = cipher.encrypt(nonce, hex::encode(content).as_ref()).expect("encryption failure!");
-    base64::encode(ciphertext)
+    let ciphertext = &cipher.encrypt(nonce, content.as_bytes().as_ref()).expect("encryption failure!");
+    hex::encode(ciphertext)
 }
 
 fn decrypt(content: &str) -> String {
-    println!("{}", content);
     let key = b"an example very very secret key.";
     let cipher = Aes256GcmSiv::new(Key::from_slice(key));
     let nonce = Nonce::from_slice(b"unique nonce");
-    let plaintext = cipher.decrypt(nonce, content.as_ref()).expect("decryption failure!");
-    base64::encode(plaintext)
+    let plaintext = &cipher.decrypt(nonce, hex::decode(content).unwrap().as_ref()).expect("decryption failure!");
+    String::from_utf8(plaintext.to_vec()).unwrap()
 }
