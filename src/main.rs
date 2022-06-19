@@ -1,4 +1,4 @@
-use std::fs::{self, File, metadata};
+use std::fs::{self, metadata, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
 // use sha3::{Digest, Sha3_256};
@@ -16,16 +16,31 @@ fn main() -> std::io::Result<()> {
 }
 
 fn all_files(files: &mut Vec<PathBuf>, file: &PathBuf) {
-    let paths = fs::read_dir(file).unwrap();  
+    let paths = fs::read_dir(file).unwrap();
     for path in paths {
         let curr = path.unwrap().path();
-        let temp = metadata(&curr.as_path().display().to_string()[..]).unwrap();
-        if temp.is_dir() {
-            all_files(files, &curr);
-        } else {
-            files.push(curr);
+        let curr_str = &curr.as_path().display().to_string()[..];
+        if should_include(curr_str) {
+            let temp = metadata(curr_str).unwrap();
+            if temp.is_dir() {
+                all_files(files, &curr);
+            } else {
+                files.push(curr);
+            }
         }
     }
+}
+
+fn should_include(file: &str) -> bool {
+    let to_exclude = vec![
+        ".\\.git",
+        ".\\src",
+        ".\\target",
+        ".\\.gitignore",
+        ".\\Cargo.lock",
+        ".\\Cargo.toml",
+    ];
+    !to_exclude.contains(&file)
 }
 
 fn write(data: &[u8; 10]) -> Result<(), std::io::Error> {
