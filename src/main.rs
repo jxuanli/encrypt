@@ -1,12 +1,20 @@
+use aes_gcm_siv::{
+    aead::generic_array::{typenum::UInt, GenericArray},
+    {
+        aead::{
+            consts::{B0, B1},
+            generic_array::typenum::UTerm,
+            Aead, NewAead,
+        },
+        {Aes256GcmSiv, Key, Nonce},
+    },
+};
+use hex;
+use rand;
 use std::fs::{self, metadata};
+use std::io::Error;
 use std::path::PathBuf;
 use std::str;
-use std::io::Error;
-use aes_gcm_siv::aead::generic_array::GenericArray;
-use hex;
-use aes_gcm_siv::{Aes256GcmSiv, Key, Nonce}; 
-use aes_gcm_siv::aead::{Aead, NewAead};
-use rand;
 
 fn main() -> std::io::Result<()> {
     let mut files: Vec<PathBuf> = Vec::new();
@@ -19,7 +27,10 @@ fn parse_key(files: Vec<PathBuf>) -> Result<(), Error> {
     Ok(if get_log(0)? == "0" {
         let key: [u8; 32] = rand::random();
         let nonce: [u8; 12] = rand::random();
-        fs::write(".\\log", format!("{},{},{}", "1", hex::encode(key), hex::encode(nonce)))?;
+        fs::write(
+            ".\\log",
+            format!("{},{},{}", "1", hex::encode(key), hex::encode(nonce)),
+        )?;
         write_all(files, &encrypt)?;
     } else {
         println!("Files have already been encrypted!");
@@ -60,12 +71,15 @@ fn should_include(file: &str) -> bool {
         ".\\Cargo.lock",
         ".\\Cargo.toml",
         ".\\log",
-        ".\\.vscode"
+        ".\\.vscode",
     ];
     !to_exclude.contains(&file)
 }
 
-fn write_all(paths: Vec<PathBuf>, target: &dyn Fn(&str)->Result<String, Error>) -> Result<(), Error> {
+fn write_all(
+    paths: Vec<PathBuf>,
+    target: &dyn Fn(&str) -> Result<String, Error>,
+) -> Result<(), Error> {
     for path_buf in paths {
         let path = path_buf.to_str().unwrap();
         let data = &String::from_utf8(fs::read(path)?).unwrap();
@@ -76,19 +90,27 @@ fn write_all(paths: Vec<PathBuf>, target: &dyn Fn(&str)->Result<String, Error>) 
 }
 
 fn encrypt(content: &str) -> Result<String, Error> {
-    let _nonce_str = &hex::decode(get_log(2)?).unwrap();
-    let nonce = Nonce::from_slice(_nonce_str);
-    let ciphertext = &get_cipher()?.encrypt(nonce, content.as_bytes().as_ref()).unwrap();
+    let ciphertext = &get_cipher()?
+        .encrypt(&get_nonce()?, content.as_bytes().as_ref())
+        .unwrap();
     Ok(hex::encode(ciphertext))
 }
 
 fn decrypt(content: &str) -> Result<String, Error> {
-    let _nonce_str = &hex::decode(get_log(2)?).unwrap();
-    let nonce = *Nonce::from_slice(_nonce_str);
-    let plaintext = &get_cipher()?.decrypt(&nonce, hex::decode(content).unwrap().as_ref()).unwrap();
+    let plaintext = &get_cipher()?
+        .decrypt(&get_nonce()?, hex::decode(content).unwrap().as_ref())
+        .unwrap();
     Ok(String::from_utf8(plaintext.to_vec()).unwrap())
 }
 
+fn get_nonce() -> Result<GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>, Error> {
+    let _nonce_str = &hex::decode(get_log(2)?).unwrap();
+    let nonce = *Nonce::from_slice(_nonce_str);
+    Ok(nonce)
+}
+
 fn get_cipher() -> Result<Aes256GcmSiv, Error> {
-    Ok(Aes256GcmSiv::new(Key::from_slice(&hex::decode(get_log(1)?).unwrap())))
+    Ok(Aes256GcmSiv::new(Key::from_slice(
+        &hex::decode(get_log(1)?).unwrap(),
+    )))
 }
