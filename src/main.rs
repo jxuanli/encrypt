@@ -4,7 +4,7 @@ use std::str;
 use hex;
 use aes_gcm_siv::{Aes256GcmSiv, Key, Nonce}; 
 use aes_gcm_siv::aead::{Aead, NewAead};
-
+use rand;
 
 fn main() -> std::io::Result<()> {
     let mut files: Vec<PathBuf> = Vec::new();
@@ -14,17 +14,23 @@ fn main() -> std::io::Result<()> {
 }
 
 fn parse_key(files: Vec<PathBuf>) -> Result<(), std::io::Error> {
-    let key = String::from_utf8(fs::read(".\\log")?).unwrap();
-    let parts: Vec<&str> = key.split(",").collect();
-    Ok(if parts[0] == "0" {
+    Ok(if get_log(0)? == "0" {
+        let key: [u8; 32] = rand::random();
+        let nonce: [u8; 12] = rand::random();
+        fs::write(".\\log", format!("{},{},{}", "1", hex::encode(key), hex::encode(nonce)))?;
         write_all(files, &encrypt)?;
-        fs::write(".\\log", format!("{},{}", "1", "an example very very secret key."))?;
     } else {
         println!("Files have already been encrypted!");
         write_all(files, &decrypt)?;
         fs::write(".\\log", format!("{},{}", "0", ""))?;
         println!("Files have already been decrypted!");
     })
+}
+
+fn get_log(index: usize) -> Result<String, std::io::Error> {
+    let key = String::from_utf8(fs::read(".\\log")?).unwrap();
+    let logs: Vec<&str> = key.split(",").collect();
+    Ok(logs[index].to_owned())
 }
 
 fn all_files(files: &mut Vec<PathBuf>, file: &PathBuf) {
@@ -57,28 +63,30 @@ fn should_include(file: &str) -> bool {
     !to_exclude.contains(&file)
 }
 
-fn write_all(paths: Vec<PathBuf>, target: &dyn Fn(&str)->String) -> Result<(), std::io::Error> {
+fn write_all(paths: Vec<PathBuf>, target: &dyn Fn(&str)->Result<String, std::io::Error>) -> Result<(), std::io::Error> {
     for path_buf in paths {
         let path = path_buf.to_str().unwrap();
         let data = &String::from_utf8(fs::read(path)?).unwrap();
         println!("writing: {:?}, {:?}", path, target(data));
-        fs::write(path, target(data))?;
+        fs::write(path, target(data)?)?;
     }
     Ok(())
 }
 
-fn encrypt(content: &str) -> String {
-    let key = b"an example very very secret key.";
-    let cipher = Aes256GcmSiv::new(Key::from_slice(key));
-    let nonce = Nonce::from_slice(b"unique nonce");
-    let ciphertext = &cipher.encrypt(nonce, content.as_bytes().as_ref()).expect("encryption failure!");
-    hex::encode(ciphertext)
+fn encrypt(content: &str) -> Result<String, std::io::Error> {
+    let _nonce_str = &hex::decode(get_log(2)?).unwrap();
+    let nonce = Nonce::from_slice(_nonce_str);
+    let ciphertext = &get_cipher()?.encrypt(nonce, content.as_bytes().as_ref()).expect("encryption failure!");
+    Ok(hex::encode(ciphertext))
 }
 
-fn decrypt(content: &str) -> String {
-    let key = b"an example very very secret key.";
-    let cipher = Aes256GcmSiv::new(Key::from_slice(key));
-    let nonce = Nonce::from_slice(b"unique nonce");
-    let plaintext = &cipher.decrypt(nonce, hex::decode(content).unwrap().as_ref()).expect("decryption failure!");
-    String::from_utf8(plaintext.to_vec()).unwrap()
+fn decrypt(content: &str) -> Result<String, std::io::Error> {
+    let _nonce_str = &hex::decode(get_log(2)?).unwrap();
+    let nonce = Nonce::from_slice(_nonce_str);
+    let plaintext = &get_cipher()?.decrypt(nonce, hex::decode(content).unwrap().as_ref()).expect("decryption failure!");
+    Ok(String::from_utf8(plaintext.to_vec()).unwrap())
+}
+
+fn get_cipher() -> Result<Aes256GcmSiv, std::io::Error> {
+    Ok(Aes256GcmSiv::new(Key::from_slice(&hex::decode(get_log(1)?).unwrap())))
 }
