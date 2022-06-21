@@ -11,8 +11,9 @@ use aes_gcm_siv::{
 };
 use hex;
 use rand;
+use sha3::{Digest, Sha3_256};
 use std::fs::{self, metadata};
-use std::io::Error;
+use std::io::{self, Error};
 use std::path::PathBuf;
 use std::str;
 
@@ -25,17 +26,28 @@ fn main() -> std::io::Result<()> {
 
 fn parse_key(files: Vec<PathBuf>) -> Result<(), Error> {
     Ok(if get_log(0)? == "0" {
+        println!("Please create a password");
         let key: [u8; 32] = rand::random();
         let nonce: [u8; 12] = rand::random();
         fs::write(
             ".\\log",
-            format!("{},{},{}", "1", hex::encode(key), hex::encode(nonce)),
+            format!(
+                "{},{},{},{}",
+                "1",
+                hex::encode(key),
+                hex::encode(nonce),
+                to_sha3()?
+            ),
         )?;
         write_all(files, &encrypt)?;
     } else {
         println!("Files have already been encrypted!");
+        println!("Please enter your password");
+        while to_sha3()? != get_log(3)? {
+            println!("Password incorrect, please try again");
+        }
         write_all(files, &decrypt)?;
-        fs::write(".\\log", format!("{},{}", "0", ""))?;
+        fs::write(".\\log", format!("{},{},{}", "0", "", ""))?;
         println!("Files have already been decrypted!");
     })
 }
@@ -113,4 +125,12 @@ fn get_cipher() -> Result<Aes256GcmSiv, Error> {
     Ok(Aes256GcmSiv::new(Key::from_slice(
         &hex::decode(get_log(1)?).unwrap(),
     )))
+}
+
+fn to_sha3() -> Result<String, Error> {
+    let mut pw = String::new();
+    io::stdin().read_line(&mut pw)?;
+    Ok(hex::encode(
+        Sha3_256::new().chain_update(pw.as_bytes()).finalize(),
+    ))
 }
